@@ -1,0 +1,93 @@
+#include <WiFi.h>
+#include <WebServer.h>
+#include "DHT.h"
+
+#define DHTPIN 4
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+
+#define RELAY1 12 // Light
+#define RELAY2 14 // Fan
+
+const char* ssid = "YourWiFi_SSID";
+const char* password = "YourWiFi_PASSWORD";
+
+WebServer server(80);
+
+float temperature;
+float humidity;
+
+// HTML Page
+String HTMLPage() {
+  String page = "<html><head><title>Smart Home Dashboard</title></head><body>";
+  page += "<h1>Home Automation IoT</h1>";
+  page += "<p>Temperature: " + String(temperature) + " &deg;C</p>";
+  page += "<p>Humidity: " + String(humidity) + " %</p>";
+
+  page += "<h2>Control Appliances</h2>";
+  page += "<a href=\"/light_on\">Turn ON Light</a><br>";
+  page += "<a href=\"/light_off\">Turn OFF Light</a><br>";
+  page += "<a href=\"/fan_on\">Turn ON Fan</a><br>";
+  page += "<a href=\"/fan_off\">Turn OFF Fan</a><br>";
+  
+  page += "</body></html>";
+  return page;
+}
+
+void setup() {
+  Serial.begin(115200);
+  
+  pinMode(RELAY1, OUTPUT);
+  pinMode(RELAY2, OUTPUT);
+  
+  dht.begin();
+  
+  WiFi.begin(ssid, password);
+  Serial.println("Connecting to WiFi...");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  
+  Serial.println("");
+  Serial.println("WiFi Connected!");
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
+
+  server.on("/", []() {
+    temperature = dht.readTemperature();
+    humidity = dht.readHumidity();
+    server.send(200, "text/html", HTMLPage());
+  });
+
+  server.on("/light_on", []() {
+    digitalWrite(RELAY1, LOW);
+    server.sendHeader("Location", "/");
+    server.send(303);
+  });
+
+  server.on("/light_off", []() {
+    digitalWrite(RELAY1, HIGH);
+    server.sendHeader("Location", "/");
+    server.send(303);
+  });
+
+  server.on("/fan_on", []() {
+    digitalWrite(RELAY2, LOW);
+    server.sendHeader("Location", "/");
+    server.send(303);
+  });
+
+  server.on("/fan_off", []() {
+    digitalWrite(RELAY2, HIGH);
+    server.sendHeader("Location", "/");
+    server.send(303);
+  });
+
+  server.begin();
+}
+
+void loop() {
+  server.handleClient();
+}
+\
